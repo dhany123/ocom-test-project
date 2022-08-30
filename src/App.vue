@@ -29,16 +29,16 @@
     </div>
 
     <project-editor
-      ref="projectEditor"
-      :showEditor="showProjectEditor"
+      v-if="showProjectEditor"
       :item="editProject"
     >
-
     </project-editor>
+
   </div>
 </template>
 
 <script>
+import { mapActions, mapState } from 'vuex';
 import ProjectEditor from "./components/Project/editor.vue"
 
 export default {
@@ -49,59 +49,48 @@ export default {
 
   data(){
     return {
-      projects: [],
-      libraries: [],
-      showProjectEditor: false,
       editProject: null
     }
   },
 
-  methods: {
-    getLibraries(){
-      this.axios.get("http://localhost:3000/library").then((response) => {
-        console.info(response.data)
-        this.libraries = response.data
-      })
-    },
+  computed: {
+    ...mapState([
+      'projects',
+      'libraries',
+      'showProjectEditor'
+    ]),
 
-    getProjects(){
-      this.axios.get("http://localhost:3000/project").then((response) => {
-        console.info(response.data)
-        this.projects = response.data
-        console.info(this.projects)
-      })
-    },
+  },
+
+  methods: {
+    ...mapActions([
+      'fetchLibraries',
+      'fetchProjects',
+      'toggleProjectEditor'
+    ]),
 
     onAddProjectClick(){
-      this.showProjectEditor = true
-      this.$refs.projectEditor.showModal()
+      this.editProject = null
+      this.toggleProjectEditor(true)
     },
 
     onEditProjectClick(id){
-      console.info("id---", id)
       let item = this.projects.find(item => item.id === id)
-      let newLibraries = []
 
-      item.libraries.forEach(library => {
-        newLibraries.push({
-          id: library.library_id,
-          description: this.libraries.find(item => item.id === library.library_id).description,
-          version: library.version
-        })
+      item.libraries.map(library => {
+        library.description = this.libraries.find(item => item.id === library.library_id).description
+        return library
       })
 
-      item['libraries'] = newLibraries
-
       this.editProject = { ...{}, ...item }
-      this.$refs.projectEditor.showModal()
-
+      this.toggleProjectEditor(true)
     },
     
   },
 
   mounted(){
-    this.getProjects()
-    this.getLibraries()
+    this.fetchLibraries()    
+    this.fetchProjects()
   }
 
 };

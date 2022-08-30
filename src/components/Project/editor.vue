@@ -1,18 +1,30 @@
 <template>
   <div>
     <b-modal
+      no-close-on-backdrop
+      no-close-on-esc
+      modal-header-close
       id="editorModal"
       hide-footer
       ref="modal"
-      title="Submit Your Name"
       size="xl"
     >
-    <template #modal-header="{ close }">
-      <h5>Create Project</h5>
-      <!-- Emulate built in modal header close button action -->
-      <button class="btn btn-primary" @click="onSubmitProjectClick">
-        Save Project
-      </button>
+    <template #modal-header="">
+      <h5>{{modalTitle}}</h5>
+     <div class="row">
+        <div class="col-4">
+          <button class="btn btn-secondary" @click="toggleProjectEditor(false)">
+            Cancel
+          </button>
+        </div>
+        <div class="col-8">
+          <button class="btn btn-primary" @click="onSubmitProjectClick">
+            Save Project
+          </button>
+        </div>
+     </div>
+
+    
     </template>
     
       <form ref="form">
@@ -96,15 +108,14 @@
 
           <b-col md="6">
             <b-form-group
-          label="Active Start Date"
-          invalid-feedback="Name is required"
-          class="mb-2"
-        >
-          <b-form-input
-            v-model="form.active_start_date"
-            type="date"
-            required
-          ></b-form-input>
+            label="Active Start Date"
+            invalid-feedback="Name is required"
+            class="mb-2"
+            >
+            <b-form-datepicker 
+              v-model="form.active_start_date" 
+              class="mb-2">
+            </b-form-datepicker>
         </b-form-group>
           </b-col>
           <b-col md="6">
@@ -113,11 +124,10 @@
               invalid-feedback="Name is required"
               class="mb-2"
             >
-              <b-form-input
-                v-model="form.active_end_date"
-                type="date"
-                required
-              ></b-form-input>
+
+            <b-form-datepicker 
+              v-model="form.active_end_date">
+            </b-form-datepicker>
             </b-form-group>
           </b-col>
         </b-row>
@@ -128,7 +138,7 @@
               <b-col md="5">
                 <b-form-group  label="Library" label-for="input-3">
                   <select v-model="selectedLibrary" class="form-select">
-                    <option v-for="item in libraries" :key="item.id">{{item.description}}</option>
+                    <option v-for="item in activeLibraries" :key="item.id">{{item.description}}</option>
                   </select>
                 </b-form-group>
               </b-col>
@@ -168,12 +178,13 @@
 
 <script>
 
+import { mapActions, mapGetters } from 'vuex';
+
 export default {
   name: "ProjectEditor",
 
   props: {
     item: Object,
-    value: Boolean,
   },
 
   data(){
@@ -182,40 +193,25 @@ export default {
       selectedLibrary: null,
       libraryVersion: null,
       libraries: [],
-
-      options: [
-        { value: null, text: 'Please select an option' },
-        { value: 'a', text: 'This is First option' },
-        { value: 'b', text: 'Selected Option' },
-        { value: { C: '3PO' }, text: 'This is an option with object value' },
-        { value: 'd', text: 'This one is disabled', disabled: true }
-      ],
-
-      items: [
-        {  first_name: 'Dickerson', last_name: 'Macdonald' },
-        { first_name: 'Larsen', last_name: 'Shaw' },
-        { first_name: 'Geneva', last_name: 'Wilson' },
-        {  first_name: 'Jami', last_name: 'Carney' }
-      ]
     }
   },
 
+  computed: {
+    ...mapGetters([
+      'activeLibraries'
+    ]),
+
+    modalTitle() {
+      return this.item && this.item.id ? "Edit Project" : "Create Project";
+    },
+  },
 
   methods: {
-    getLibraries(){
-      this.axios.get("http://localhost:3000/library").then((response) => {
-        console.info(response.data)
-        this.libraries = response.data
-      })
-    },
-
-    showModal(){
-      this.$bvModal.show("editorModal")
-    },
-
-    closeModal() {
-      this.$bvModal.hide("editorModal")
-    },
+    ...mapActions([
+      'toggleProjectEditor',
+      'createProject',
+      'updateProject',
+    ]),
 
     onAddLibraryClick(){
       if(this.selectedLibrary == null && this.libraryVersion == null ){
@@ -223,18 +219,28 @@ export default {
       }
 
       this.form.libraries.push({
-        library_id: this.libraries.find(items => items.description === this.selectedLibrary).id,
+        library_id: this.activeLibraries.find(items => items.description === this.selectedLibrary).id,
         description: this.selectedLibrary,
-        version: 2
+        version: this.libraryVersion
       })
     },
 
     onSubmitProjectClick(){
-      delete this.form["id"]
-      this.axios.post("http://localhost:3000/project", this.form).then((response) => {
-        console.info(response.data)
-      })
-      
+      console.info(this.form)
+      try {
+        if(this.item && this.item.id){
+          this.updateProject(this.form)
+          return
+        }
+        
+        delete this.form["id"]
+        this.createProject(this.form)
+      } catch (error) {
+        
+      }
+      finally{
+        this.toggleProjectEditor(false)
+      }
     },
     
   },
@@ -246,7 +252,7 @@ export default {
           ...{
             id: null,
             active_end_date: "",
-            active_start_date: "",
+            active_start_date: new Date() ,
             client_name: "",
             description: "",
             git_url: "",
@@ -263,11 +269,10 @@ export default {
   },
 
   mounted(){
-    this.getLibraries()
+    this.$bvModal.show("editorModal")
   }
 
-};
-
+}
 </script>
 
 <style>
