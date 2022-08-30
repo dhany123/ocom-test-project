@@ -1,4 +1,4 @@
-# test-project
+# ocom-test-project
 
 ## Project setup
 ```
